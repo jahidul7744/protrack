@@ -55,9 +55,9 @@ export async function POST(request: Request) {
 
     await prisma.$transaction(updates);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: `Successfully promoted ${tasksToPromote.length} tasks`,
-      count: tasksToPromote.length 
+      count: tasksToPromote.length
     });
   } catch (error: any) {
     console.error('Auto-promote error:', error);
