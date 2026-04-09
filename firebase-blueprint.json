@@ -1,0 +1,102 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Represents a project in the system.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Project Name" },
+        "projectId": { "type": "string", "description": "Project ID" },
+        "description": { "type": "string", "description": "Project Description" },
+        "clientCompany": { "type": "string", "description": "Client Company" },
+        "clientName": { "type": "string", "description": "Client Name" },
+        "category": { "type": "string", "description": "Project Category" },
+        "kam": { "type": "string", "description": "Key Account Manager" },
+        "startDate": { "type": "string", "format": "date", "description": "Start Date" },
+        "endDate": { "type": "string", "format": "date", "description": "End Date" },
+        "followUp": { "type": "string", "description": "Follow-up notes" },
+        "createdBy": { "type": "string", "description": "UID of the user who created the project" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["name", "projectId", "createdBy"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Represents a task within a project.",
+      "type": "object",
+      "properties": {
+        "projectId": { "type": "string", "description": "Reference to the Project ID" },
+        "task": {
+          "type": "object",
+          "properties": {
+            "what": { "type": "string" },
+            "when": { "type": "string", "format": "date" },
+            "who": { "type": "string" }
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "what": { "type": "string" },
+            "when": { "type": "string", "format": "date" },
+            "who": { "type": "string" }
+          }
+        },
+        "nextStep": {
+          "type": "object",
+          "properties": {
+            "what": { "type": "string" },
+            "when": { "type": "string", "format": "date" },
+            "who": { "type": "string" }
+          }
+        },
+        "notes": { "type": "string" },
+        "status": { 
+          "type": "string", 
+          "enum": ["To Do", "In Progress", "Done"],
+          "description": "Current status of the task" 
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          }
+        },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["projectId", "task", "createdBy"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the system.",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of projects"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Collection of tasks"
+    },
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    }
+  }
+}
