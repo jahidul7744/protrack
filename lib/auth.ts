@@ -6,16 +6,17 @@ import bcrypt from 'bcryptjs';
 import { prisma } from './db';
 
 export const authOptions: NextAuthOptions = {
-  // In production this must be set in env vars (Vercel -> Project Settings -> Environment Variables)
   secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
+
   adapter: PrismaAdapter(prisma),
-  // JWT strategy is required when using the Credentials provider
+
   session: { strategy: 'jwt' },
+
   providers: [
+    // ✅ GOOGLE LOGIN
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-      // Persist the Google profile image in our DB
       profile(profile) {
         return {
           id: profile.sub,
@@ -26,69 +27,120 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+
+    // ✅ CREDENTIALS LOGIN
     CredentialsProvider({
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
+
       async authorize(credentials) {
-        const email = credentials?.email?.trim().toLowerCase();
-        const password = credentials?.password;
-        if (!email || !password) return null;
+        try {
+          console.log("🔐 LOGIN ATTEMPT:", credentials);
 
-        const user = await prisma.user.findFirst({
-          where: {
-            email: {
-              equals: email,
-              mode: 'insensitive',
+          const email = credentials?.email?.trim().toLowerCase();
+          const password = credentials?.password;
+
+          // ❌ Missing input
+          if (!email || !password) {
+            console.log("❌ Missing email or password");
+            throw new Error("Missing email or password");
+          }
+
+          // 🔍 Find user
+          const user = await prisma.user.findFirst({
+            where: {
+              email: {
+                equals: email,
+                mode: 'insensitive',
+              },
             },
-          },
-        });
+          });
 
-        if (!user || !user.password) return null;
+          console.log("👤 USER FOUND:", user?.email);
 
-        const isValid = await bcrypt.compare(password, user.password);
-        if (!isValid) return null;
+          // ❌ User not found
+          if (!user) {
+            throw new Error("User not found");
+          }
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-          role: user.role,
-        };
+          // ❌ Google account trying credentials login
+          if (!user.password) {
+            throw new Error("Please login using Google");
+          }
+
+          // ⚠️ Detect non-hashed password (VERY IMPORTANT FIX)
+          if (!user.password.startsWith('$2')) {
+            console.log("⚠️ Password is NOT hashed in DB");
+            throw new Error("Password is not hashed. Fix your database.");
+          }
+
+          // 🔑 Compare password
+          const isValid = await bcrypt.compare(password, user.password);
+
+          console.log("🔑 PASSWORD MATCH:", isValid);
+
+          if (!isValid) {
+            throw new Error("Invalid password");
+          }
+
+          // ✅ SUCCESS
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            role: user.role,
+          };
+
+        } catch (error: any) {
+          console.log("🚨 AUTH ERROR:", error.message);
+          throw new Error(error.message || "Authentication failed");
+        }
       },
     }),
   ],
+
   callbacks: {
-    // Persist role & id in the JWT token
+    // ✅ JWT CALLBACK
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role ?? 'user';
       }
-      // For Google sign-in: fetch the DB role (in case it was updated)
+
+      // Sync role for Google users
       if (account?.provider === 'google' && token.email) {
-        const dbUser = await prisma.user.findUnique({ where: { email: token.email } });
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+        });
+
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
         }
       }
+
       return token;
     },
-    // Expose id + role on the client-side session object
+
+    // ✅ SESSION CALLBACK
     async session({ session, token }) {
       if (token && session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).role = token.role as string;
+        (session.user as any).id = token.id;
+        (session.user as any).role = token.role;
       }
+
       return session;
     },
   },
+
   pages: {
-    signIn: '/',   // Redirect unauthenticated users back to our custom login screen
-    error: '/',
+    signIn: '/',
+    error: '/', // you can customize error UI later
   },
+
+  debug: process.env.NODE_ENV === 'development',
 };
