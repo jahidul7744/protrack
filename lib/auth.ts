@@ -6,6 +6,8 @@ import bcrypt from 'bcryptjs';
 import { prisma } from './db';
 
 export const authOptions: NextAuthOptions = {
+  // In production this must be set in env vars (Vercel -> Project Settings -> Environment Variables)
+  secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   // JWT strategy is required when using the Credentials provider
   session: { strategy: 'jwt' },
